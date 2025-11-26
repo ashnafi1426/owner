@@ -1,8 +1,7 @@
-  import express from "express";
+import express from "express";
 import signupRouter from "./signupRouter.js";
-
+import loginRouter from "./loginRouter.js";
 const router = express.Router();
-router.use("/api", signupRouter);
-
-
+router.use('/auth', loginRouter);  
+router.use('/signup', signupRouter); 
 export default router;
