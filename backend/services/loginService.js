@@ -3,29 +3,38 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 export const loginUser = async (email, password) => {
-  // Fetch user from Supabase table
+  // 1️⃣ Fetch user by email
   const { data: user, error } = await supabase
-    .from('users')  // Make sure your table name is 'user' or adjust
-    .select('*')
-    .eq('email', email)
+    .from("users")
+    .select("*")
+    .eq("email", email)
     .single();
 
   if (error || !user) {
-    throw new Error('User not found');
+    throw new Error("User not found");
   }
 
-  // Compare password
+  // 2️⃣ Validate password
   const isPasswordValid = await bcrypt.compare(password, user.password);
   if (!isPasswordValid) {
-    throw new Error('Invalid password');
+    throw new Error("Invalid password");
   }
 
-  // Generate token
+  // 3️⃣ Create JWT token (IMPORTANT: Your column is user_id)
   const token = jwt.sign(
-    { id: user.id, email: user.email },
-    process.env.JWT_SECRET, // your env variable must be JWT_SECRET (case-sensitive)
+    { user_id: user.user_id, email: user.email },
+    process.env.JWT_SECRET,
     { expiresIn: "1h" }
   );
 
-  return { user: { id: user.id, email: user.email }, token };
+  // 4️⃣ Return user data without password
+  return {
+    user: {
+      user_id: user.user_id,
+      username: user.username,
+      email: user.email,
+      bio: user.bio
+    },
+    token
+  };
 };

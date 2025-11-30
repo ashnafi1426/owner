@@ -1,0 +1,423 @@
+Full UI Wireframe — Blog MVP (pages, components, layouts, interactions)
+
+Great — here’s a complete, developer-friendly wireframe for your blog MVP. It lists every page you need, the components on each page, layout rules (desktop & mobile), interaction flows, required API calls per page, and suggested CSS class names you can reuse. Use this as your single-source UI spec while building.
+
+1. Global (shared) layout & components
+
+Purpose: elements used across pages.
+
+Top-level layout
+
+<header>: site logo (left), search bar (center), nav links (Create, Profile/Login) (right)
+
+<main>: page content
+
+<aside> (optional on desktop): trending posts, categories, newsletter
+
+<footer>: copyright, links, social
+
+Shared components
+
+Navbar — logo, nav links, search input, user avatar/menu
+
+PostCard — thumbnail, title, excerpt, author, readTime, date, tags
+
+AuthorPreview — avatar, name, follow button
+
+Pagination — simple previous/next or page numbers
+
+Button — primary / secondary / ghost
+
+FormInput, Textarea, FileUploader
+
+Toast / Snackbar for notifications
+
+Loader (spinner)
+
+Modal (confirm delete etc.)
+
+Global CSS classes (example)
+
+.container — responsive center column (max-width: 1100px; padding)
+
+.row, .col, .stack — layout helpers
+
+.btn, .btn-primary, .btn-ghost
+
+.card, .card-media, .card-body
+
+.text-muted, .small, .tag
+
+2. Pages & Wireframes (detailed)
+A — Home / Feed
+
+Path: /
+Goal: show featured & list of latest posts; drive reading.
+
+Desktop layout
+
+Header
+-------------------------------
+| Featured Post (large card)  |
+-------------------------------
+| 2-column: Main feed | Aside |
+| - PostCard list      | - Categories
+| - Pagination         | - Trending
+-------------------------------
+Footer
+
+
+Mobile layout
+
+Single column:
+
+Featured
+
+Post list
+
+Trending (below or collapsible)
+
+Key blocks
+
+Featured Post (big image, title, excerpt)
+
+Post list (PostCard)
+
+Category chips
+
+Search bar (top)
+
+Pagination or infinite scroll
+
+Interactions
+
+Click PostCard → /posts/:slug
+
+Click category chip → /category/:name
+
+Search → calls /api/posts?search=...
+
+API calls
+
+GET /api/posts?limit=10&page=1
+
+GET /api/posts?featured=true
+
+GET /api/categories (or derive from tags)
+
+B — Single Post Page
+
+Path: /posts/:slug
+Goal: read post, comment, interact (like/bookmark), view author.
+
+Layout
+
+Header
+--------------------------
+| Post Title             |
+| Author info + date     |
+| Cover image            |
+--------------------------
+| Post content (markdown)|
+--------------------------
+| Actions: Like | Bookmark|
+| Comments section       |
+--------------------------
+Aside: other posts by author / related posts
+Footer
+
+
+Interactions
+
+Like button toggles POST /api/posts/:id/like
+
+Bookmark POST /api/posts/:id/bookmark
+
+Add comment POST /api/posts/:id/comments
+
+Edit / Delete (if author) → show Edit button linking to /editor/:id
+
+Share (copy URL) button
+
+API calls
+
+GET /api/posts/:id
+
+GET /api/posts/:id/comments
+
+POST /api/posts/:id/comments (auth)
+
+POST /api/posts/:id/like (auth)
+
+C — Create / Edit Post (Editor)
+
+Path: /editor (create) /editor/:id (edit)
+Goal: write & publish posts.
+
+Layout
+
+Header
+--------------------------
+| Title input             |
+| Tags input (chips)      |
+| Category dropdown       |
+| Cover image uploader    |
+--------------------------
+| Editor area (markdown or WYSIWYG) |
+--------------------------
+| Save Draft | Publish     |
+Footer
+
+
+Interactions
+
+Autosave drafts (localStorage + PUT /api/posts/:id/draft)
+
+Image upload integration → POST /api/uploads returns URL
+
+Publish → POST /api/posts or PUT /api/posts/:id
+
+API calls
+
+POST /api/posts (body: title, content, tags, category, coverImage, status)
+
+PUT /api/posts/:id
+
+POST /api/uploads (for images)
+
+D — Login / Register
+
+Paths: /login, /register
+Goal: authenticate users.
+
+Layout
+
+Header (minimal)
+Form: email, password, name (register includes name)
+Buttons: Submit, Forgot Password
+Link to Register/Login
+
+
+Interactions
+
+On login, store JWT in localStorage and set Auth context
+
+Show errors (invalid credentials)
+
+After login redirect to /
+
+API calls
+
+POST /api/auth/register
+
+POST /api/auth/login
+
+E — User Profile Page
+
+Path: /user/:username or /profile (own)
+Goal: view user info & their posts.
+
+Layout
+
+Header
+Profile header: avatar, name, bio, edit button (if owner)
+Tabs: Posts | About
+Posts list (PostCard)
+Footer
+
+
+Interactions
+
+Edit profile (modal or /profile/edit) → update avatar, bio
+
+Follow/unfollow (future): POST /api/users/:id/follow
+
+API calls
+
+GET /api/users/:username
+
+GET /api/posts?author=:id
+
+PUT /api/users/me (auth)
+
+F — Search & Category Page
+
+Path: /search?q=... /category/:name
+Goal: find posts quickly.
+
+Layout
+
+Search results use PostCard list
+
+Filter controls: sort by newest, most liked
+
+API calls
+
+GET /api/posts?search=...&page=1
+
+GET /api/posts?category=Technology
+
+G — Dashboard / My Posts (Author)
+
+Path: /dashboard
+Goal: manage authored posts, drafts, stats.
+
+Layout
+
+Header
+Sidebar: My posts | Drafts | Settings
+Main: posts table (title, status, date, edit, delete)
+Footer
+
+
+Interactions
+
+Edit / Delete post
+
+Toggle publish/draft
+
+API calls
+
+GET /api/posts?author=me
+
+DELETE /api/posts/:id
+
+H — 404 / Error Page
+
+Path: any unknown
+Goal: friendly message + link home
+
+3. Visual & UX details (styling guidance)
+
+Colors
+
+Primary: --primary: #0b6cf6 (example)
+
+Text: #111 / muted #6b7280
+
+Typography
+
+Headline: 28–36px (desktop)
+
+Body: 16px
+
+Line height: 1.6
+
+Spacing
+
+Use 8px modular scale: 8,16,24,32,48
+
+Buttons
+
+Primary: filled with primary color
+
+Ghost: outline
+
+Cards
+
+soft shadow, rounded corners (8px)
+
+Responsive rules
+
+Desktop: 2-column layout (grid-template-columns: 1fr 320px)
+
+Tablet: single column, aside moves below
+
+Mobile: compact header icon, hamburger nav
+
+4. Interaction states & accessibility
+
+Buttons: hover, active, disabled states
+
+Inputs: error validation & helper text
+
+Keyboard accessible: focus outlines, tab order
+
+Images: alt attributes
+
+ARIA: for modals and dynamic content (announce changes)
+
+5. Example: HTML skeleton for Home (you can copy)
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="styles.css">
+  <title>AshuBlog</title>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="logo" href="/">AshuBlog</a>
+      <input class="search" placeholder="Search posts..." />
+      <nav class="nav">
+        <a href="/editor" class="btn btn-ghost">Create</a>
+        <a href="/login">Login</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="featured">
+      <!-- Featured post card -->
+      <article class="card featured-card">
+        <img src="/cover.jpg" alt="">
+        <h2>Featured post title</h2>
+        <p class="excerpt">Short excerpt...</p>
+      </article>
+    </section>
+
+    <div class="layout">
+      <section class="post-list">
+        <!-- Repeat PostCard -->
+        <article class="card post-card">
+          <img class="card-media" src="/thumb.jpg" alt="">
+          <div class="card-body">
+            <h3>Post Title</h3>
+            <p class="excerpt">Post excerpt text...</p>
+            <div class="meta">By <a href="/user/ashu">Ashu</a> · 5 min read</div>
+          </div>
+        </article>
+      </section>
+
+      <aside class="sidebar">
+        <div class="card">Categories</div>
+        <div class="card">Trending</div>
+      </aside>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">© 2025 AshuBlog</div>
+  </footer>
+</body>
+</html>
+
+6. Mapping UI to API (quick reference)
+
+Home → GET /api/posts?limit=10&page=1
+
+Featured → GET /api/posts?featured=true
+
+View Post → GET /api/posts/:id
+
+Create → POST /api/posts (auth)
+
+Edit → PUT /api/posts/:id (auth)
+
+Comments → POST /api/posts/:id/comments (auth)
+
+Like → POST /api/posts/:id/like (auth)
+
+Auth → POST /api/auth/login, POST /api/auth/register
+
+7. Delivery suggestions
+
+Start with wireframe HTML skeletons for Home, Post, Editor, Profile.
+
+Implement responsive CSS (mobile-first).
+
+Build components incrementally: Navbar → PostCard → PostList → SinglePost → Editor.
+
+Use Auth context/provider in React to manage JWT and protected routes.

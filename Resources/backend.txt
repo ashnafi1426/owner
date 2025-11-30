@@ -1,0 +1,500 @@
+Nice — I’ll give you a complete, developer-friendly backend API technical design + database schema for your blog (Express + PostgreSQL + JWT), plus a concrete step-by-step development roadmap you can follow week-by-week. Copy/paste code, SQL, and commands are included so you can start building immediately.
+
+1️⃣ Technical overview (short)
+
+Backend: Node.js + Express
+
+DB: PostgreSQL (local) via pg (node-postgres)
+
+Auth: JWT (access + refresh optional) + bcrypt for passwords
+
+File uploads: store image URL in DB; upload to Supabase Storage / Cloudinary (recommended) or local uploads/ during dev
+
+Testing: Postman + simple unit tests later (Jest)
+
+Deployment: Render / Railway for backend; Vercel for frontend; use managed Postgres when ready
+
+2️⃣ Project folder structure (recommended)
+backend/
+├─ src/
+│  ├─ config/
+│  │   └─ db.js                # pg Pool
+│  ├─ middleware/
+│  │   └─ auth.js              # JWT verify middleware
+│  ├─ controllers/
+│  │   └─ auth.controller.js
+│  │   └─ posts.controller.js
+│  │   └─ comments.controller.js
+│  ├─ routes/
+│  │   └─ auth.routes.js
+│  │   └─ posts.routes.js
+│  │   └─ comments.routes.js
+│  ├─ services/
+│  │   └─ posts.service.js     # SQL queries
+│  ├─ utils/
+│  │   └─ slugify.js
+│  └─ index.js                 # express app start
+├─ migrations/                  # optional SQL migrations
+├─ .env
+├─ package.json
+└─ README.md
+
+3️⃣ Package list (install)
+npm init -y
+npm i express pg bcrypt jsonwebtoken dotenv cors helmet express-validator multer
+# dev
+npm i -D nodemon
+
+
+pg — Postgres client
+
+bcrypt — hash passwords
+
+jsonwebtoken — JWT tokens
+
+express-validator — input validation
+
+multer — file uploads (if using local uploads)
+
+helmet, cors, dotenv — security & config
+
+4️⃣ Environment variables (.env)
+PORT=5500
+DATABASE_URL=postgres://postgres:yourpassword@localhost:5432/blog_db
+JWT_SECRET=your_jwt_secret_here
+JWT_EXPIRES_IN=1h
+REFRESH_TOKEN_EXPIRES_IN=7d   # optional
+
+5️⃣ Database schema (SQL)
+
+Run these in psql or pgAdmin. Uses pgcrypto for gen_random_uuid() — enable extension if needed.
+
+-- enable uuid generator (run once)
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- users
+CREATE TABLE users (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  username VARCHAR(50) UNIQUE NOT NULL,
+  email VARCHAR(150) UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  bio TEXT,
+  avatar_url TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+-- posts
+CREATE TABLE posts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  content TEXT NOT NULL,              -- markdown or HTML
+  cover_image TEXT,
+  author_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  tags TEXT[],
+  category TEXT,
+  status VARCHAR(20) DEFAULT 'published', -- draft | published
+  likes INT DEFAULT 0,
+  views INT DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX idx_posts_author ON posts(author_id);
+CREATE INDEX idx_posts_slug ON posts(slug);
+
+-- comments
+CREATE TABLE comments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  content TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
+CREATE INDEX idx_comments_post ON comments(post_id);
+
+-- likes (to handle unique like per user per post)
+CREATE TABLE post_likes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE (post_id, user_id)
+);
+
+-- bookmarks (optional)
+CREATE TABLE bookmarks (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  post_id UUID REFERENCES posts(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  UNIQUE (post_id, user_id)
+);
+
+
+Note: tags TEXT[] stores tags array; you may prefer a normalized tags table if you need tag analytics.
+
+6️⃣ API endpoints (full list & contracts)
+Auth
+
+POST /api/auth/register
+
+Body: { username, email, password }
+
+Returns: { user: {id, username, email, avatar_url}, token }
+
+POST /api/auth/login
+
+Body: { email, password }
+
+Returns: { user, token }
+
+GET /api/auth/me (auth)
+
+Header: Authorization: Bearer <token>
+
+Returns: current user
+
+Users
+
+PUT /api/users/me (auth) — update profile (bio, avatar_url, username)
+
+GET /api/users/:username — public profile + their posts
+
+Posts
+
+GET /api/posts?limit=10&page=1&search=&category=&tag= — list with pagination
+
+GET /api/posts/:slug — return single post with author and comments
+
+POST /api/posts (auth) — create; body: { title, content, tags, category, cover_image, status }
+
+PUT /api/posts/:id (auth & owner) — update
+
+DELETE /api/posts/:id (auth & owner) — delete
+
+Comments
+
+GET /api/posts/:id/comments
+
+POST /api/posts/:id/comments (auth) — { content }
+
+DELETE /api/comments/:id (auth & owner or admin)
+
+Likes / Bookmarks
+
+POST /api/posts/:id/like (auth) — toggle like or create like — returns new likes count
+
+POST /api/posts/:id/bookmark (auth) — toggle bookmark
+
+File Upload (optional)
+
+POST /api/uploads (auth) — multer file upload → returns { url }
+
+7️⃣ Example: db connection (src/config/db.js)
+const { Pool } = require('pg');
+require('dotenv').config();
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL
+});
+
+module.exports = {
+  query: (text, params) => pool.query(text, params),
+  pool
+};
+
+8️⃣ Example: auth controller (src/controllers/auth.controller.js)
+const db = require('../config/db');
+const bcrypt = require('bcrypt');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '1h';
+
+exports.register = async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    // basic validation omitted for brevity
+    const hashed = await bcrypt.hash(password, 10);
+    const q = 'INSERT INTO users(username, email, password) VALUES ($1,$2,$3) RETURNING id, username, email, avatar_url, created_at';
+    const { rows } = await db.query(q, [username, email, hashed]);
+    const user = rows[0];
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    res.status(201).json({ user, token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Registration failed' });
+  }
+};
+
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const q = 'SELECT id, username, email, password, avatar_url FROM users WHERE email=$1';
+    const { rows } = await db.query(q, [email]);
+    const user = rows[0];
+    if(!user) return res.status(401).json({ message: 'Invalid credentials' });
+    const ok = await bcrypt.compare(password, user.password);
+    if(!ok) return res.status(401).json({ message: 'Invalid credentials' });
+    const token = jwt.sign({ userId: user.id }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    delete user.password;
+    res.json({ user, token });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Login failed' });
+  }
+};
+
+9️⃣ Example: auth middleware (src/middleware/auth.js)
+const jwt = require('jsonwebtoken');
+const db = require('../config/db');
+const JWT_SECRET = process.env.JWT_SECRET;
+
+async function auth(req, res, next){
+  const h = req.headers.authorization;
+  if(!h || !h.startsWith('Bearer ')) return res.status(401).json({ message: 'Unauthorized' });
+  const token = h.split(' ')[1];
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    // attach user id & optionally user details
+    req.user = { id: payload.userId };
+    // optionally fetch user object:
+    // const { rows } = await db.query('SELECT id, username FROM users WHERE id=$1', [payload.userId])
+    // req.user = rows[0];
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+}
+
+module.exports = auth;
+
+10️⃣ Example: posts controller snippets (create / get by slug)
+// create post
+exports.createPost = async (req, res) => {
+  try {
+    const { title, content, tags, category, cover_image, status } = req.body;
+    const slug = slugify(title); // implement unique slug check
+    const q = `INSERT INTO posts(title, slug, content, cover_image, author_id, tags, category, status)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`;
+    const { rows } = await db.query(q, [title, slug, content, cover_image, req.user.id, tags || null, category || null, status || 'published']);
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Could not create post' });
+  }
+};
+
+// get by slug (with comments + author)
+exports.getPostBySlug = async (req, res) => {
+  try {
+    const slug = req.params.slug;
+    const q = `SELECT p.*, json_build_object('id',u.id,'username',u.username,'avatar_url',u.avatar_url) as author
+               FROM posts p LEFT JOIN users u ON p.author_id = u.id WHERE p.slug=$1`;
+    const { rows } = await db.query(q, [slug]);
+    if(!rows[0]) return res.status(404).json({ message: 'Not found' });
+    const post = rows[0];
+    const commentsQ = `SELECT c.*, json_build_object('id',u.id,'username',u.username) as user
+                       FROM comments c LEFT JOIN users u ON c.user_id = u.id WHERE c.post_id=$1 ORDER BY c.created_at DESC`;
+    const { rows: comments } = await db.query(commentsQ, [post.id]);
+    post.comments = comments;
+    res.json(post);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Could not fetch post' });
+  }
+};
+
+11️⃣ Like toggle example (safe, idempotent)
+// POST /api/posts/:id/like
+exports.toggleLike = async (req,res) => {
+  const postId = req.params.id;
+  const userId = req.user.id;
+  try {
+    // try insert; on conflict do nothing
+    const insertQ = `INSERT INTO post_likes(post_id,user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`;
+    await db.query(insertQ, [postId, userId]);
+    // count likes
+    const { rows } = await db.query('SELECT COUNT(*)::int AS cnt FROM post_likes WHERE post_id=$1',[postId]);
+    const likes = rows[0].cnt;
+    // update posts.likes (optional)
+    await db.query('UPDATE posts SET likes=$1 WHERE id=$2',[likes,postId]);
+    res.json({ likes });
+  } catch (err) {
+    console.error(err); res.status(500).json({ message:'like failed' });
+  }
+}
+
+12️⃣ Input validation & security notes
+
+Validate inputs with express-validator.
+
+Sanitize content: if saving HTML, sanitize it (DOMPurify server-side libs) or store markdown and render sanitized HTML on frontend.
+
+Enforce authorization: check post.author_id === req.user.id before update/delete.
+
+Rate-limit endpoints (optional).
+
+Use HTTPS in production.
+
+13️⃣ Postman / testing quick examples
+
+Register:
+
+POST /api/auth/register
+Content-Type: application/json
+
+{ "username":"ashu", "email":"ashu@example.com", "password":"secret123" }
+
+
+Login:
+
+POST /api/auth/login
+{ "email":"ashu@example.com", "password":"secret123" }
+
+
+Create Post (with token):
+
+POST /api/posts
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "title":"My first post",
+  "content":"Hello markdown",
+  "tags":["nodejs","express"],
+  "category":"Programming",
+  "status":"published"
+}
+
+
+Get Post:
+
+GET /api/posts/:slug
+
+14️⃣ Step-by-step development roadmap (1 month plan — single dev learning)
+
+Each item contains deliverables & time estimate (assuming 2–4 hrs/day). Adjust to your pace.
+
+Sprint 0 — Setup (1–2 days)
+
+Initialize repo, add README, .env.example
+
+Install packages, create basic express server
+
+Create db.js and verify connection to local Postgres
+
+Commit: chore: initial project setup
+
+Sprint 1 — Authentication (3–5 days)
+
+Create users table in DB
+
+Implement register/login controllers
+
+JWT middleware
+
+GET /api/auth/me
+
+Basic tests with Postman
+Deliverable: User registration/login working, token issued.
+
+Sprint 2 — Posts CRUD (5–7 days)
+
+Create posts table & slug utility
+
+Implement POST /api/posts, GET /api/posts, GET /api/posts/:slug
+
+Implement PUT & DELETE with owner checks
+
+Pagination limit/page support
+Deliverable: Create/read/update/delete posts working.
+
+Sprint 3 — Comments & Likes (4–6 days)
+
+Create comments & post_likes tables
+
+Endpoints: add comment, list comments, delete comment
+
+Like toggle endpoint & count
+Deliverable: Interactive post pages supported via API.
+
+Sprint 4 — Profile, Uploads, Search (3–5 days)
+
+Profile update endpoint, get author posts
+
+File upload endpoint integrating Cloudinary/Supabase or local uploads
+
+Search endpoint (?search=...) and category/tag filters
+Deliverable: Upload flow + search working.
+
+Sprint 5 — Polish, Validation, Error handling (2–3 days)
+
+Add express-validator checks
+
+Centralized error handler middleware
+
+Proper HTTP status codes
+
+Logging (console or simple logger)
+Deliverable: Stable API with validation.
+
+Sprint 6 — Deployment & CI (3–5 days)
+
+Create Procfile or Dockerfile (optional)
+
+Deploy to Render / Railway
+
+Set production DB (managed Postgres)
+
+Setup env vars, test live endpoints
+
+Add GitHub Actions CI for lint/test (optional)
+Deliverable: Backend live on public URL.
+
+Total estimated: 4–6 weeks depending on learning speed. If you go faster (4–6 hrs/day) you can finish in ~3 weeks.
+
+15️⃣ Good Git milestones & branch plan
+
+main — production-ready
+
+dev — integration branch
+
+feature branches: feat/auth, feat/posts, feat/comments
+
+Pull requests + small commits
+
+16️⃣ Extras / Recommended next steps
+
+Frontend: start building React pages in parallel after Sprint 1 (auth flows).
+
+Migrations: use node-pg-migrate or knex if you want migration support for production.
+
+ORM: For more convenience later, consider Prisma (great DX with Postgres) — but raw pg is fine and lightweight.
+
+Docs: add Postman collection or OpenAPI spec.
+
+Quick Checklist (copy into your TODO)
+
+ Install Postgres locally & create blog_db
+
+ Run SQL schema
+
+ npm init + install packages
+
+ Implement DB connection & test
+
+ Implement auth register/login
+
+ Build post CRUD
+
+ Add comments & likes
+
+ Add upload & profile
+
+ Validation + error handling
+
+ Deploy to Render/Railway
+ 
