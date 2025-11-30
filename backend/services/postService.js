@@ -1,0 +1,66 @@
+import { supabase } from "../config/supabaseClient.js";
+
+// 1️⃣ Create Post
+export const createPostDB = async ({ userId, title, content }) => {
+  const { data, error } = await supabase
+    .from("posts")
+    .insert([{ user_id: userId, title, content }])
+    .select()
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+};
+
+// 2️⃣ Get All Posts
+export const getAllPostsDB = async () => {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*, users(username)")
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return data;
+};
+
+// 3️⃣ Get Single Post
+export const getPostByIdDB = async (id) => {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("*")
+    .eq("post_id", id)
+    .maybeSingle(); // safer than .single()
+
+  if (error) throw new Error(error.message);
+  return data;
+};
+
+// 4️⃣ Update Post
+export const updatePostDB = async ({ id, title, content }) => {
+  const { data, error } = await supabase
+    .from("posts")
+    .update({ title, content, updated_at: new Date() })
+    .eq("post_id", id)
+    .select()
+    .maybeSingle(); // allows 0 rows
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Post not found");
+
+  return data;
+};
+
+// 5️⃣ Delete Post
+export const deletePostDB = async (id) => {
+  const { data, error } = await supabase
+    .from("posts")
+    .delete()
+    .eq("post_id", id)
+    .select()
+    .maybeSingle(); // allows 0 rows
+
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Post not found");
+
+  return data;
+};
