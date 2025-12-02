@@ -1,6 +1,4 @@
 import { supabase } from "../config/supabaseClient.js";
-
-// 1️⃣ Create Post
 export const createPostDB = async ({ userId, title, content }) => {
   const { data, error } = await supabase
     .from("posts")
@@ -11,8 +9,6 @@ export const createPostDB = async ({ userId, title, content }) => {
   if (error) throw new Error(error.message);
   return data;
 };
-
-// 2️⃣ Get All Posts
 export const getAllPostsDB = async () => {
   const { data, error } = await supabase
     .from("posts")
@@ -22,8 +18,6 @@ export const getAllPostsDB = async () => {
   if (error) throw new Error(error.message);
   return data;
 };
-
-// 3️⃣ Get Single Post
 export const getPostByIdDB = async (id) => {
   const { data, error } = await supabase
     .from("posts")
@@ -34,8 +28,6 @@ export const getPostByIdDB = async (id) => {
   if (error) throw new Error(error.message);
   return data;
 };
-
-// 4️⃣ Update Post
 export const updatePostDB = async ({ id, title, content }) => {
   const { data, error } = await supabase
     .from("posts")
@@ -49,8 +41,6 @@ export const updatePostDB = async ({ id, title, content }) => {
 
   return data;
 };
-
-// 5️⃣ Delete Post
 export const deletePostDB = async (id) => {
   const { data, error } = await supabase
     .from("posts")

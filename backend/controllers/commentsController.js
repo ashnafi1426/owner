@@ -9,7 +9,7 @@ import {
 export const createComment = async (req, res) => {
   try {
     const { post_id } = req.params;
-    const userId = req.user.user_id;   // ✅ FIXED: correct property
+    const userId = req.user.user_id;
     const { content } = req.body;
 
     const newComment = await createCommentService(post_id, userId, content);
@@ -32,7 +32,7 @@ export const getComments = async (req, res) => {
 export const updateComment = async (req, res) => {
   try {
     const { id } = req.params;
-    const userId = req.user.user_id;  // ✅ FIXED
+    const userId = req.user.user_id;
     const { content } = req.body;
 
     const updatedComment = await updateCommentService(id, userId, content);

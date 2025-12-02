@@ -2,7 +2,6 @@ import { supabase } from '../config/supabaseClient.js';
 import bcrypt from 'bcryptjs';
 
 export const createUser = async ({ firstname, lastname, username, email, password, bio }) => {
-  // 1️⃣ Check if email already exists
   const { data: existingEmail, error: emailError } = await supabase
     .from('users')
     .select('user_id')
@@ -17,8 +16,6 @@ export const createUser = async ({ firstname, lastname, username, email, passwor
   if (existingEmail) {
     throw new Error('Email already exists');
   }
-
-  // 2️⃣ Check if username already exists
   const { data: existingUsername, error: usernameError } = await supabase
     .from('users')
     .select('user_id')
@@ -32,11 +29,7 @@ export const createUser = async ({ firstname, lastname, username, email, passwor
   if (existingUsername) {
     throw new Error('Username already exists');
   }
-
-  // 3️⃣ Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
-
-  // 4️⃣ Insert new user
   const { data: newUser, error: insertError } = await supabase
     .from('users')
     .insert([
@@ -46,7 +39,7 @@ export const createUser = async ({ firstname, lastname, username, email, passwor
         username,
         email,
         password: hashedPassword,
-        bio: bio ?? null // if bio is undefined, store null
+        bio: bio ?? null
       }
     ])
     .select()
@@ -55,6 +48,5 @@ export const createUser = async ({ firstname, lastname, username, email, passwor
   if (insertError) {
     throw new Error(insertError.message);
   }
-
   return newUser;
 };

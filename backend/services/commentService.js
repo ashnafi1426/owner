@@ -1,8 +1,5 @@
 import { supabase } from "../config/supabaseClient.js";
-
-// ✅ Create Comment
 export const createCommentService = async (postId, userId, content) => {
-
   if (!userId) throw new Error("User ID is missing (auth failure)");
   if (!postId) throw new Error("Post ID is required");
   if (!content) throw new Error("Content is required");
@@ -13,10 +10,8 @@ export const createCommentService = async (postId, userId, content) => {
     .select();
 
   if (error) throw new Error(error.message);
-  return data[0]; // return first row
+  return data[0];
 };
-
-// ✅ Get comments for a post
 export const getCommentsByPostService = async (postId) => {
   if (!postId) throw new Error("Post ID is required");
 
@@ -35,22 +30,17 @@ export const getCommentsByPostService = async (postId) => {
   if (error) throw new Error(error.message);
   return data;
 };
-
-
-// ✅ Update comment
 export const updateCommentService = async (commentId, userId, content) => {
   const { data, error } = await supabase
     .from("comments")
     .update({ content })
-    .eq("comment_id", commentId) // <-- corrected
+    .eq("comment_id", commentId)
     .eq("user_id", userId)
     .select();
 
   if (error) throw new Error(error.message);
   return data[0] || null;
 };
-
-// ✅ Delete comment
 export const deleteCommentService = async (commentId, userId) => {
   if (!commentId) throw new Error("Comment ID is required");
   if (!userId) throw new Error("User ID is required");
@@ -58,7 +48,7 @@ export const deleteCommentService = async (commentId, userId) => {
   const { data, error } = await supabase
     .from("comments")
     .delete()
-    .eq("comment_id", commentId)  // <-- use comment_id instead of id
+    .eq("comment_id", commentId)
     .eq("user_id", userId)
     .select();
 
