@@ -1,24 +1,15 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import PostForm from "./PostForm";
+import PostList from "./PostList";
 
-function Dashboard() {
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    navigate("/");
-  };
-
+const Dashboard = () => {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
-      <h1 className="text-3xl font-bold mb-4">Welcome to Dashboard</h1>
-      <button
-        onClick={handleLogout}
-        className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700"
-      >
-        Logout
-      </button>
+    <div className="max-w-3xl mx-auto p-4">
+      <h1 className="text-2xl font-bold mb-4">Dashboard</h1>
+      <PostForm onSuccess={() => window.location.reload()} />
+      <PostList />
     </div>
   );
-}
+};
+
 export default Dashboard;
