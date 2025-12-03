@@ -15,8 +15,14 @@ function Login() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
     try {
-      await loginUser(formData);
+      const data = await loginUser(formData);
+
+      // Save token and userId to localStorage
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("userId", data.user.user_id);
+
       navigate("/dashboard");
     } catch (err) {
       setError(err.message || "Login failed");
