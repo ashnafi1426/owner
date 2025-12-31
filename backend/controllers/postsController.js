@@ -30,13 +30,11 @@ export const createPost = async (req, res) => {
         console.log("Validation failed: no title");
         return res.status(400).json({ message: "Title is required to publish" });
       }
-      
       if (!strippedContent) {
         console.log("Validation failed: no content");
         return res.status(400).json({ message: "Content is required to publish" });
       }
     }
-
     const post = await createPostDB({ 
       userId, 
       title, 
