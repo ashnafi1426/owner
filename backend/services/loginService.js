@@ -8,7 +8,6 @@ export const loginUser = async (email, password) => {
     .select("*")
     .eq("email", email)
     .single();
-
   if (error || !user) {
     throw new Error("User not found");
   }
